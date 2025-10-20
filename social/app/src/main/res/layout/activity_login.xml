@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fichier neutre : UI construite en Kotlin dans MainActivity.kt -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android" />
+
