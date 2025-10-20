@@ -12,32 +12,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = Tokens.Dark.primary,
+    secondary = Tokens.Dark.secondary,
+    tertiary = Tokens.Dark.tertiary,
+    background = Tokens.Dark.background,
+    surface = Tokens.Dark.surface,
+    onBackground = Tokens.Dark.onBackground,
+    onSurface = Tokens.Dark.onSurface,
+    onPrimary = Tokens.Dark.onPrimary,
+    onSecondary = Tokens.Dark.onSecondary,
+    onTertiary = Tokens.Dark.onTertiary
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = Tokens.Light.primary,
+    secondary = Tokens.Light.secondary,
+    tertiary = Tokens.Light.tertiary,
+    background = Tokens.Light.background,
+    surface = Tokens.Light.surface,
+    onBackground = Tokens.Light.onBackground,
+    onSurface = Tokens.Light.onSurface,
+    onPrimary = Tokens.Light.onPrimary,
+    onSecondary = Tokens.Light.onSecondary,
+    onTertiary = Tokens.Light.onTertiary
 )
 
 @Composable
 fun MobileTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

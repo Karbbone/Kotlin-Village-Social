@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.example.mobile.ui.theme.MobileTheme
 import com.example.mobile.ui.login.LoginScreen
-import com.example.mobile.ui.home.HomeScreen
+import com.example.mobile.ui.navigation.AppTabs
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -32,15 +32,15 @@ class MainActivity : ComponentActivity() {
                         composable("login") {
                             LoginScreen(
                                 onLoginSuccess = {
-                                    navController.navigate("home") {
+                                    navController.navigate("tabs") {
                                         popUpTo("login") { inclusive = true }
                                         launchSingleTop = true
                                     }
                                 }
                             )
                         }
-                        composable("home") {
-                            HomeScreen()
+                        composable("tabs") {
+                            AppTabs()
                         }
                     }
                 }
