@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import 'dotenv/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
 import { City } from './entities/city.entity';
 import { EventPhoto } from './entities/event-photo.entity';
 import { EventType } from './entities/event-type.entity';
@@ -24,6 +25,7 @@ import { User } from './entities/user.entity';
       entities: [User, City, Event, EventType, EventPhoto],
     }),
     TypeOrmModule.forFeature([User, City, Event, EventType, EventPhoto]),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
