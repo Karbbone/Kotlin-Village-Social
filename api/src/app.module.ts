@@ -1,0 +1,31 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import 'dotenv/config';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { City } from './entities/city.entity';
+import { EventPhoto } from './entities/event-photo.entity';
+import { EventType } from './entities/event-type.entity';
+import { Event } from './entities/event.entity';
+import { User } from './entities/user.entity';
+
+@Module({
+  imports: [
+    TypeOrmModule.forRoot({
+      type: 'mysql',
+      host: process.env.DB_HOST ?? 'localhost',
+      port: parseInt(process.env.DB_PORT ?? '3306', 10),
+      username: process.env.DB_USER ?? 'app_user',
+      password: process.env.DB_PASSWORD ?? 'app_password',
+      database: process.env.DB_NAME ?? 'app_db',
+      synchronize: (process.env.DB_SYNC ?? 'false').toLowerCase() === 'true',
+      autoLoadEntities: true,
+      logging: false,
+      entities: [User, City, Event, EventType, EventPhoto],
+    }),
+    TypeOrmModule.forFeature([User, City, Event, EventType, EventPhoto]),
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
