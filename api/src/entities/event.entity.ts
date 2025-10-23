@@ -3,16 +3,12 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  JoinTable,
-  ManyToMany,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { City } from './city.entity.js';
 import { EventPhoto } from './event-photo.entity.js';
-import { EventType } from './event-type.entity.js';
 import { User } from './user.entity.js';
 
 @Entity('events')
@@ -33,19 +29,18 @@ export class Event {
   @Column({ type: 'datetime' })
   date!: Date;
 
-  // Rattachements
-  @ManyToOne(() => City, (city: City) => city.events, { nullable: false })
-  city!: City;
+  // Nom de la ville directement stocké, plus de relation à une entité City
+  @Index('IDX_events_city')
+  @Column({ length: 255 })
+  city!: string;
 
   @ManyToOne(() => User, (user: User) => user.events, { nullable: false })
   creator!: User;
 
-  // Types multiples
-  @ManyToMany(() => EventType, (type: EventType) => type.events, {
-    cascade: true,
-  })
-  @JoinTable({ name: 'events_types' })
-  types!: Array<EventType>;
+  // Type d'événement stocké en clair (pas de relation)
+  @Index('IDX_events_type')
+  @Column({ length: 100 })
+  type!: string;
 
   // Photos multiples
   @OneToMany(() => EventPhoto, (photo: EventPhoto) => photo.event, {

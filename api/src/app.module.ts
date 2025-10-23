@@ -4,10 +4,7 @@ import 'dotenv/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { CitiesModule } from './cities/cities.module';
-import { City } from './entities/city.entity';
 import { EventPhoto } from './entities/event-photo.entity';
-import { EventType } from './entities/event-type.entity';
 import { Event } from './entities/event.entity';
 import { User } from './entities/user.entity';
 import { EventsModule } from './events/events.module';
@@ -24,12 +21,11 @@ import { EventsModule } from './events/events.module';
       synchronize: (process.env.DB_SYNC ?? 'false').toLowerCase() === 'true',
       autoLoadEntities: true,
       logging: false,
-      entities: [User, City, Event, EventType, EventPhoto],
+      entities: [User, Event, EventPhoto],
     }),
-    TypeOrmModule.forFeature([User, City, Event, EventType, EventPhoto]),
+    TypeOrmModule.forFeature([User, Event, EventPhoto]),
     AuthModule,
     EventsModule,
-    CitiesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -4,9 +4,9 @@ export class EventResponseDto {
   description!: string;
   location!: string;
   date!: string;
-  city!: { id: number; name: string };
+  city!: string;
   creator!: { id: number; displayName: string };
-  types!: Array<{ id: number; label: string }>;
+  type!: string;
   photos!: Array<{ id: number; url?: string }>;
   createdAt!: string;
 }

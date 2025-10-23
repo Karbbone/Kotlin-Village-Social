@@ -1,6 +1,36 @@
-version: '3.9'
+version: '3.8'
 
 services:
+  # API NestJS
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: app_user
+      DB_PASSWORD: app_password
+      DB_NAME: app_db
+    depends_on:
+      mysql:
+        condition: service_healthy
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.api.rule=Host(`mobile.maillet.bzh`)'
+      - 'traefik.http.routers.api.entrypoints=websecure'
+      - 'traefik.http.routers.api.tls=true'
+      - 'traefik.http.routers.api.tls.certresolver=letsencrypt'
+      - 'traefik.http.services.api.loadbalancer.server.port=5050'
+      - 'traefik.docker.network=traefik'
+    networks:
+      - traefik
+      - backend
+
+  # Base de données MySQL
   mysql:
     image: mysql:8.0
     container_name: api_mysql
@@ -23,12 +53,12 @@ services:
     networks:
       - backend
 
+  # Adminer (outil web pour MySQL) - optionnel
   adminer:
     image: adminer:latest
     container_name: adminer
     restart: unless-stopped
     environment:
-      # Facilite la connexion par défaut vers le service MySQL "mysql"
       ADMINER_DEFAULT_SERVER: mysql
     depends_on:
       mysql:
@@ -44,3 +74,6 @@ volumes:
 networks:
   backend:
     driver: bridge
+  traefik:
+    external: true
+    name: traefik

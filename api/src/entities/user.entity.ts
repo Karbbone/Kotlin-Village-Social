@@ -2,13 +2,10 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinTable,
-  ManyToMany,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { City } from './city.entity.js';
 import { Event } from './event.entity.js';
 
 @Entity('users')
@@ -25,10 +22,7 @@ export class User {
   @Column({ length: 100 })
   displayName!: string;
 
-  // Villes de rattachement multiples
-  @ManyToMany(() => City, (city: City) => city.followers, { cascade: true })
-  @JoinTable({ name: 'users_cities' })
-  attachedCities!: Array<City>;
+  // Champ supprimé: plus de rattachement à des villes (City)
 
   // Evénements créés par l'utilisateur
   @OneToMany(() => Event, (event: Event) => event.creator)

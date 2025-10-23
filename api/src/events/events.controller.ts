@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Param,
-  ParseIntPipe,
   Post,
   Query,
   Req,
@@ -11,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { CreateEventDto } from './dto/create-event.dto.js';
-import { CreateTypeDto } from './dto/create-type.dto.js';
 import { FindEventsDto } from './dto/find-events.dto.js';
 import { EventsService } from './events.service.js';
 
@@ -19,14 +17,14 @@ import { EventsService } from './events.service.js';
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
-  @Get('cities/:cityId')
+  @Get('cities/:cityName')
   async findByCity(
-    @Param('cityId', ParseIntPipe) cityId: number,
+    @Param('cityName') cityName: string,
     @Query() query: FindEventsDto,
   ) {
     const upcomingOnly = query.upcomingOnly !== false;
     return this.eventsService.findAll({
-      cityId,
+      city: cityName,
       upcomingOnly,
       sort: query.sort ?? 'asc',
       limit: query.limit ?? 20,
@@ -35,29 +33,17 @@ export class EventsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('cities/:cityId')
+  @Post('cities/:cityName')
   async createInCity(
-    @Param('cityId', ParseIntPipe) cityId: number,
+    @Param('cityName') cityName: string,
     @Body() body: CreateEventDto,
     @Req() req: { user?: { userId: number } },
   ) {
     const creatorId = req.user!.userId;
-    return this.eventsService.createInCity(cityId, creatorId, body);
+    return this.eventsService.createInCity(cityName, creatorId, body);
   }
 
-  // Create an event type (protected)
-  @UseGuards(JwtAuthGuard)
-  @Get('types')
-  findAllTypes() {
-    return this.eventsService.findAllTypes();
-  }
-
-  // Create an event type (protected)
-  @UseGuards(JwtAuthGuard)
-  @Post('types')
-  async createType(@Body() body: CreateTypeDto) {
-    return this.eventsService.createType(body.name);
-  }
+  // Plus de routes pour les types: on stocke un simple string
 
   // Past events of current user (only creator can access)
   @UseGuards(JwtAuthGuard)
@@ -69,10 +55,10 @@ export class EventsController {
 
   @Get(':id')
   async findOne(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Req() req: { user?: { id: number } },
   ) {
     const requesterId = req.user?.id;
-    return this.eventsService.findOne(id, requesterId);
+    return this.eventsService.findOne(Number(id), requesterId);
   }
 }
