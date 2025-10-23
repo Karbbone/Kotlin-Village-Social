@@ -4,6 +4,7 @@ import 'dotenv/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { CitiesModule } from './cities/cities.module';
 import { EventPhoto } from './entities/event-photo.entity';
 import { Event } from './entities/event.entity';
 import { User } from './entities/user.entity';
@@ -26,6 +27,7 @@ import { EventsModule } from './events/events.module';
     TypeOrmModule.forFeature([User, Event, EventPhoto]),
     AuthModule,
     EventsModule,
+    CitiesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
