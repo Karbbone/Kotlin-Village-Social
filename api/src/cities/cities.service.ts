@@ -11,8 +11,30 @@ export class CitiesService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
   ) {}
 
-  findAll(): Promise<City[]> {
-    return this.cityRepo.find({ order: { name: 'ASC' } });
+  async findAll(params?: {
+    q?: string;
+    postalCode?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<City[]> {
+    const qb = this.cityRepo
+      .createQueryBuilder('c')
+      .select(['c.id', 'c.name', 'c.postalCode'])
+      .orderBy('c.name', 'ASC');
+
+    if (params?.q) {
+      qb.andWhere('c.name LIKE :q', { q: `${params.q}%` });
+    }
+    if (params?.postalCode) {
+      qb.andWhere('c.postalCode LIKE :cp', { cp: `${params.postalCode}%` });
+    }
+    if (typeof params?.limit === 'number') {
+      qb.take(Math.max(0, Math.min(10000, params.limit)));
+    }
+    if (typeof params?.offset === 'number') {
+      qb.skip(Math.max(0, params.offset));
+    }
+    return qb.getMany();
   }
 
   async findAllForUser(userId: number): Promise<City[]> {

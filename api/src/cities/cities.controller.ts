@@ -6,6 +6,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import { City } from '../entities/city.entity';
 import { CitiesService } from './cities.service.js';
@@ -16,8 +17,18 @@ export class CitiesController {
 
   // GET /cities
   @Get()
-  findAll(): Promise<City[]> {
-    return this.citiesService.findAll();
+  findAll(
+    @Query('q') q?: string,
+    @Query('postalCode') postalCode?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ): Promise<City[]> {
+    return this.citiesService.findAll({
+      q,
+      postalCode,
+      limit: limit ? Number(limit) : undefined,
+      offset: offset ? Number(offset) : undefined,
+    });
   }
 
   // GET /cities/users/:userId -> toutes les villes d'un utilisateur
