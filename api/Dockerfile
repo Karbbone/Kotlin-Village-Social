@@ -16,6 +16,8 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
+# Enable pnpm in the runtime container for running scripts (migrations)
+RUN corepack enable
 # Copy built app and production deps
 COPY --from=build /app/dist ./dist
 COPY package.json ./

@@ -21,7 +21,9 @@
     "typeorm": "typeorm",
     "migration:generate": "pnpm build && pnpm typeorm -d dist/data-source/app.data-source.js migration:generate src/migrations/InitSchema",
     "migration:run": "pnpm build && pnpm typeorm -d dist/data-source/app.data-source.js migration:run",
-    "migration:revert": "pnpm build && pnpm typeorm -d dist/data-source/app.data-source.js migration:revert"
+    "migration:revert": "pnpm build && pnpm typeorm -d dist/data-source/app.data-source.js migration:revert",
+    "migration:run:dist": "pnpm typeorm -d dist/data-source/app.data-source.js migration:run",
+    "migration:revert:dist": "pnpm typeorm -d dist/data-source/app.data-source.js migration:revert"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
