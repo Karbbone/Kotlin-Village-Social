@@ -27,16 +27,20 @@ async function main() {
     const communes = await fetchAllCommunes();
     console.log(`Communes récupérées: ${communes.length}`);
 
-    // Construire une liste (nom, code postal). Une commune peut avoir plusieurs CP => une entrée par CP.
-    const seen = new Set<string>();
+    // Construire une liste (nom, code postal) avec UNICITÉ SUR LE NOM UNIQUEMENT.
+    // Si plusieurs codes postaux existent pour un même nom, on garde le premier.
+    const seenNames = new Set<string>();
     const values: Array<Pick<City, 'name' | 'postalCode'>> = [];
     for (const c of communes) {
-      for (const cp of c.codesPostaux ?? []) {
-        const key = `${c.nom}#${cp}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        values.push({ name: c.nom, postalCode: cp });
-      }
+      const normalized = c.nom?.trim().toLowerCase();
+      if (!normalized) continue;
+
+      if (seenNames.has(normalized)) continue;
+      const firstCp = c.codesPostaux?.[0];
+      if (!firstCp) continue; // ignore si aucun CP
+
+      seenNames.add(normalized);
+      values.push({ name: c.nom.trim(), postalCode: firstCp });
     }
 
     console.log(`Total d'entrées Ville à insérer: ${values.length}`);
