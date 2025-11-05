@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Query,
   Req,
@@ -53,12 +54,24 @@ export class EventsController {
     return this.eventsService.findPastByCreator(userId);
   }
 
+  // Recherche via body: POST /events/search { cityName?: string; type?: string }
+  // - Si aucun champ: retourne les 5 derniers événements créés
+  // - Si cityName et/ou type fournis: filtre en conséquence
+  @Post('search')
+  async searchByCityAndType(
+    @Body() body: { cityName?: string; type?: string },
+  ) {
+    const { cityName, type } = body ?? {};
+    return await this.eventsService.findByCityAndTypeOptional(cityName, type);
+  }
+
+  // Détail par id (validation numérique via ParseIntPipe)
   @Get(':id')
   async findOne(
-    @Param('id') id: string,
+    @Param('id', new ParseIntPipe()) id: number,
     @Req() req: { user?: { id: number } },
   ) {
     const requesterId = req.user?.id;
-    return this.eventsService.findOne(Number(id), requesterId);
+    return this.eventsService.findOne(id, requesterId);
   }
 }

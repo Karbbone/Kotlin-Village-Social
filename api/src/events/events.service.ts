@@ -134,5 +134,33 @@ export class EventsService {
     return qb.getMany();
   }
 
+  /**
+   * Recherche par paramètres optionnels dans l'URL: /events/:cityName?/:type?
+   * - Si aucun paramètre n'est fourni, on retourne les 5 derniers événements créés
+   * - Sinon on filtre sur city et/ou type et on retourne tous les résultats triés par date DESC
+   */
+  async findByCityAndTypeOptional(cityName?: string, type?: string) {
+    const qb = this.eventRepo
+      .createQueryBuilder('event')
+      .leftJoinAndSelect('event.photos', 'photos')
+      .leftJoinAndSelect('event.creator', 'creator')
+      .select(['event', 'photos', 'creator.id', 'creator.displayName']);
+
+    if (cityName) {
+      qb.andWhere('event.city = :city', { city: cityName });
+    }
+    if (type) {
+      qb.andWhere('event.type = :type', { type });
+    }
+
+    if (cityName || type) {
+      qb.orderBy('event.date', 'DESC');
+      return qb.getMany();
+    }
+
+    qb.orderBy('event.createdAt', 'DESC').take(5);
+    return qb.getMany();
+  }
+
   // Plus de gestion de types (entité supprimée)
 }
