@@ -155,13 +155,6 @@ class CitiesRepository(private val context: Context, private val api: ApiService
         }
     }
 
-    suspend fun clearCache() {
-        context.cityStore.edit { it.remove(CITIES_JSON) }
-        _status.value = CitiesStatus(LoadSource.NONE, 0, null)
-        _cities.value = emptyList()
-        Log.d("CitiesRepository", "Cities cache cleared")
-    }
-
     private fun encode(list: List<CityDto>): String {
         val arr = JSONArray()
         list.forEach { c ->

@@ -95,7 +95,6 @@ fun AddEventScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) 
     }
 
     val cities by citiesRepo.cities.collectAsState()
-    val status by citiesRepo.status.collectAsState()
 
     // Debounced local filtering of cached cities
     LaunchedEffect(cityQuery, cities) {

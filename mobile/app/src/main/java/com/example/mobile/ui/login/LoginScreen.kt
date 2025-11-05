@@ -46,8 +46,8 @@ import retrofit2.HttpException
 fun LoginScreen(
     api: ApiService,
     authRepo: AuthRepository,
+    modifier: Modifier = Modifier,
     onNavigateToRegister: () -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }

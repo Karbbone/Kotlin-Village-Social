@@ -36,18 +36,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.mobile.model.EventType
 import com.example.mobile.search.rankCities
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
+import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.Museum
 import androidx.compose.material.icons.outlined.MusicNote
@@ -80,7 +77,6 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) {
     }
 
     val cityList by citiesRepo.cities.collectAsState()
-    val status by citiesRepo.status.collectAsState()
 
     // Debounced search: filter locally from cached cities
     LaunchedEffect(query, cityList) {
@@ -287,9 +283,9 @@ private fun EventType.icon() = when (this) {
     EventType.CONCERT_SPECTACLE_MUSICAL -> Icons.Outlined.MusicNote
     EventType.ACTIVITE_DE_LOISIRS -> Icons.Outlined.EmojiEvents
     EventType.EXPOSITION_MUSEE -> Icons.Outlined.Museum
-    EventType.VISITE_BALADE -> Icons.Outlined.DirectionsWalk
+    EventType.VISITE_BALADE -> Icons.AutoMirrored.Outlined.DirectionsWalk
     EventType.CONFERENCE_DEBAT -> Icons.Outlined.Forum
-    EventType.SPORT -> Icons.Outlined.DirectionsRun
+    EventType.SPORT -> Icons.AutoMirrored.Outlined.DirectionsRun
 }
 
 private fun loadEventTypeCountsFromAssets(context: android.content.Context): Map<EventType, Int> {

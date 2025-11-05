@@ -41,24 +41,19 @@ class MainActivity : ComponentActivity() {
                 // observe token changes to navigate and show snackbars
                 val token by authRepo.tokenState.collectAsState()
                 var prevToken by remember { mutableStateOf<String?>(null) }
-                var firstRun by remember { mutableStateOf(true) }
 
                 LaunchedEffect(token) {
-                    if (firstRun) {
-                        // don't react to the initial emission from DataStore
-                        firstRun = false
-                        prevToken = token
-                        return@LaunchedEffect
-                    }
+                    // No transition if both previous and current are blank
+                    if (prevToken.isNullOrBlank() && token.isNullOrBlank()) return@LaunchedEffect
 
-                    if (token != null && prevToken.isNullOrBlank()) {
+                    if (prevToken.isNullOrBlank() && !token.isNullOrBlank()) {
                         // logged in
                         snackbarHostState.showSnackbar("Connecté")
                         navController.navigate("tabs") {
                             popUpTo("login") { inclusive = true }
                             launchSingleTop = true
                         }
-                    } else if (token.isNullOrBlank() && !prevToken.isNullOrBlank()) {
+                    } else if (!prevToken.isNullOrBlank() && token.isNullOrBlank()) {
                         // logged out
                         snackbarHostState.showSnackbar("Déconnecté")
                         navController.navigate("login") {
@@ -66,7 +61,6 @@ class MainActivity : ComponentActivity() {
                             launchSingleTop = true
                         }
                     }
-                    prevToken = token
                 }
 
                 // Use the collected `token` state instead of calling StateFlow.value directly

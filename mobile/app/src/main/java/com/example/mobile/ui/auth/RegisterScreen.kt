@@ -51,9 +51,9 @@ import retrofit2.HttpException
 fun RegisterScreen(
     api: ApiService,
     authRepo: AuthRepository,
+    modifier: Modifier = Modifier,
     onRegister: (firstName: String, lastName: String, email: String, password: String) -> Unit = { _, _, _, _ -> },
     onNavigateToLogin: () -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
     var firstName by rememberSaveable { mutableStateOf("") }
     var lastName by rememberSaveable { mutableStateOf("") }
