@@ -25,7 +25,9 @@
     "migration:run:dist": "pnpm typeorm -d dist/data-source/app.data-source.js migration:run",
     "migration:revert:dist": "pnpm typeorm -d dist/data-source/app.data-source.js migration:revert",
     "seed:cities": "pnpm build && node dist/scripts/seed-cities.js",
-    "seed:cities:prod": "node dist/scripts/seed-cities.js"
+    "seed:cities:prod": "node dist/scripts/seed-cities.js",
+    "seed:types": "pnpm build && node dist/scripts/seed-event-types.js",
+    "seed:types:prod": "node dist/scripts/seed-event-types.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

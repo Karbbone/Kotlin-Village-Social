@@ -54,15 +54,19 @@ export class EventsController {
     return this.eventsService.findPastByCreator(userId);
   }
 
-  // Recherche via body: POST /events/search { cityName?: string; type?: string }
+  // Recherche via body: POST /events/search { cityName?: string; types?: string[] }
   // - Si aucun champ: retourne les 5 derniers événements créés
-  // - Si cityName et/ou type fournis: filtre en conséquence
+  // - Si cityName et/ou types fournis: filtre en conséquence (types = ANY des valeurs)
   @Post('search')
   async searchByCityAndType(
-    @Body() body: { cityName?: string; type?: string },
+    @Body() body: { cityName?: string; types?: string[]; type?: string },
   ) {
-    const { cityName, type } = body ?? {};
-    return await this.eventsService.findByCityAndTypeOptional(cityName, type);
+    const { cityName, types, type } = body ?? {};
+    return await this.eventsService.findByCityAndTypeOptional({
+      cityName,
+      types,
+      type,
+    });
   }
 
   // Détail par id (validation numérique via ParseIntPipe)

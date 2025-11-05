@@ -3,12 +3,15 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinTable,
+  ManyToMany,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { EventPhoto } from './event-photo.entity.js';
+import { EventType } from './event-type.entity.js';
 import { User } from './user.entity.js';
 
 @Entity('events')
@@ -37,10 +40,16 @@ export class Event {
   @ManyToOne(() => User, (user: User) => user.events, { nullable: false })
   creator!: User;
 
-  // Type d'événement stocké en clair (pas de relation)
-  @Index('IDX_events_type')
-  @Column({ length: 100 })
-  type!: string;
+  // Types d'événement (relation N-N)
+  @ManyToMany(() => EventType, (etype: EventType) => etype.events, {
+    cascade: ['insert'],
+  })
+  @JoinTable({
+    name: 'events_types',
+    joinColumn: { name: 'eventId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'typeName', referencedColumnName: 'name' },
+  })
+  types!: Array<EventType>;
 
   // Photos multiples
   @OneToMany(() => EventPhoto, (photo: EventPhoto) => photo.event, {
