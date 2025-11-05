@@ -119,8 +119,14 @@ export class EventsService {
   async findPastByCreator(userId: number) {
     const qb = this.eventRepo
       .createQueryBuilder('event')
-      .leftJoinAndSelect('event.creator', 'creator')
       .leftJoinAndSelect('event.photos', 'photos')
+      .leftJoinAndSelect('event.creator', 'creator')
+      .select([
+        'event', // toutes les colonnes de l’event
+        'photos', // id + url des photos
+        'creator.id', // uniquement ces 2 colonnes du creator
+        'creator.displayName',
+      ])
       .andWhere('creator.id = :userId', { userId })
       .andWhere('event.date < :now', { now: new Date().toISOString() })
       .orderBy('event.date', 'DESC');
