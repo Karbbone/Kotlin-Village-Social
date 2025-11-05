@@ -8,22 +8,21 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocationCity
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -31,6 +30,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.mobile.ui.feed.FeedScreen
+import com.example.mobile.ui.add.AddEventScreen
+import com.example.mobile.auth.AuthRepository
+import com.example.mobile.ui.cities.CitiesScreen
+import com.example.mobile.network.NetworkModule
+import org.json.JSONObject
+import com.example.mobile.cities.CitiesRepository
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 
 sealed class NavItem(
     val route: String,
@@ -43,13 +53,6 @@ sealed class NavItem(
         label = "Accueil",
         selectedIcon = Icons.Filled.Home,
         unselectedIcon = Icons.Outlined.Home
-    )
-
-    data object Search : NavItem(
-        route = "search",
-        label = "Recherche",
-        selectedIcon = Icons.Filled.Search,
-        unselectedIcon = Icons.Outlined.Search
     )
 
     data object Add : NavItem(
@@ -76,15 +79,20 @@ sealed class NavItem(
 
 private val bottomItems = listOf(
     NavItem.Feed,
-    NavItem.Search,
     NavItem.Add,
     NavItem.Cities,
     NavItem.Profile
 )
 
 @Composable
-fun AppTabs(modifier: Modifier = Modifier) {
+fun AppTabs(
+    authRepo: AuthRepository,
+    snackbarHostState: SnackbarHostState,
+    citiesRepo: CitiesRepository,
+    modifier: Modifier = Modifier
+) {
     val navController = rememberNavController()
+    val api = remember { NetworkModule.createApi(authRepo) }
     Scaffold(
         modifier = modifier,
         bottomBar = {
@@ -124,22 +132,45 @@ fun AppTabs(modifier: Modifier = Modifier) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            composable(NavItem.Feed.route) { PlaceholderCenter("Fil d’actus (à venir)") }
-            composable(NavItem.Search.route) { PlaceholderCenter("Recherche (à venir)") }
-            composable(NavItem.Add.route) { PlaceholderCenter("Créer un évènement (à venir)") }
-            composable(NavItem.Cities.route) { PlaceholderCenter("Mes villes (à venir)") }
-            composable(NavItem.Profile.route) { PlaceholderCenter("Profil (à venir)") }
+            composable(NavItem.Feed.route) { FeedScreen(citiesRepo = citiesRepo) }
+            composable(NavItem.Add.route) { AddEventScreen(citiesRepo = citiesRepo) }
+            composable(NavItem.Cities.route) {
+                CitiesScreen(
+                    api = api,
+                    authRepo = authRepo,
+                    citiesRepo = citiesRepo,
+                    snackbarHostState = snackbarHostState
+                )
+            }
+            composable(NavItem.Profile.route) { ProfileScreen(authRepo = authRepo) }
         }
     }
 }
 
 @Composable
-private fun PlaceholderCenter(text: String) {
+fun ProfileScreen(authRepo: AuthRepository) {
+    val scope = rememberCoroutineScope()
+    val userJson = authRepo.userJsonState
+    val display = userJson.value?.let {
+        try {
+            val obj = JSONObject(it)
+            obj.optString("displayName") + "\n" + obj.optString("email")
+        } catch (_: Exception) { "" }
+    } ?: ""
+
     Box(Modifier.fillMaxSize()) {
-        Text(text = text, modifier = Modifier.align(Alignment.Center))
+        if (display.isNotBlank()) {
+            Text(text = display, modifier = Modifier.align(Alignment.Center))
+        } else {
+            Text(text = "Aucun utilisateur", modifier = Modifier.align(Alignment.Center))
+        }
+        Button(onClick = {
+            scope.launch { authRepo.clear() }
+        }, modifier = Modifier.align(Alignment.BottomCenter)) {
+            Text("Se déconnecter")
+        }
     }
 }
 
 private fun NavDestination?.isTopLevelSelected(item: NavItem): Boolean =
     this?.hierarchy?.any { it.route == item.route } == true
-
