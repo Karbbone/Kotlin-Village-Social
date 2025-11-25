@@ -1,6 +1,7 @@
 package com.example.mobile
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -10,6 +11,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.example.mobile.ui.theme.MobileTheme
@@ -31,7 +33,7 @@ class MainActivity : ComponentActivity() {
             MobileTheme {
                 val context = LocalContext.current
                 val authRepo = remember { AuthRepository(context) }
-                val api = remember { NetworkModule.createApi(authRepo) }
+                val api = remember { NetworkModule.createApi(context, authRepo) }
                 val citiesRepo = remember { CitiesRepository(context, api) }
                 LaunchedEffect(Unit) { citiesRepo.ensureLoaded() }
 
@@ -40,25 +42,34 @@ class MainActivity : ComponentActivity() {
 
                 // observe token changes to navigate and show snackbars
                 val token by authRepo.tokenState.collectAsState()
-                var prevToken by remember { mutableStateOf<String?>(null) }
+                // keep previous token in a MutableState so analyzer knows it's read/used
+                val previousToken = remember { mutableStateOf<String?>(null) }
 
-                LaunchedEffect(token) {
-                    // No transition if both previous and current are blank
-                    if (prevToken.isNullOrBlank() && token.isNullOrBlank()) return@LaunchedEffect
-
-                    if (prevToken.isNullOrBlank() && !token.isNullOrBlank()) {
-                        // logged in
-                        snackbarHostState.showSnackbar("Connecté")
-                        navController.navigate("tabs") {
-                            popUpTo("login") { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    } else if (!prevToken.isNullOrBlank() && token.isNullOrBlank()) {
-                        // logged out
-                        snackbarHostState.showSnackbar("Déconnecté")
-                        navController.navigate("login") {
-                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                            launchSingleTop = true
+                LaunchedEffect(Unit) {
+                    snapshotFlow { token }.collect { current ->
+                        val previous = previousToken.value
+                        try {
+                            if (previous.isNullOrBlank() && current.isNullOrBlank()) {
+                                // nothing to do
+                            } else if (previous.isNullOrBlank() && !current.isNullOrBlank()) {
+                                // logged in
+                                snackbarHostState.showSnackbar("Connecté")
+                                navController.navigate("tabs") {
+                                    popUpTo("login") { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            } else if (!previous.isNullOrBlank() && current.isNullOrBlank()) {
+                                // logged out
+                                snackbarHostState.showSnackbar("Déconnecté")
+                                navController.navigate("login") {
+                                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.w("MainActivity", "Error while handling auth transition", e)
+                        } finally {
+                            previousToken.value = current
                         }
                     }
                 }

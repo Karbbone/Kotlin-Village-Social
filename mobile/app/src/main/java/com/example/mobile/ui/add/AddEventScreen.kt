@@ -54,14 +54,25 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.background
 import com.example.mobile.cities.CitiesRepository
 import androidx.compose.runtime.collectAsState
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import com.example.mobile.network.ApiService
+import com.example.mobile.network.CreateEventRequest
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
 import com.example.mobile.network.CityDto
 import com.example.mobile.search.rankCities
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddEventScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) {
+fun AddEventScreen(
+    modifier: Modifier = Modifier,
+    citiesRepo: CitiesRepository,
+    api: ApiService,
+    snackbarHostState: SnackbarHostState
+) {
     // Text fields
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -86,6 +97,8 @@ fun AddEventScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) 
     var cityIsLoading by remember { mutableStateOf(false) }
     var cityErrorText by remember { mutableStateOf<String?>(null) }
     var selectedCity by remember { mutableStateOf<CityDto?>(null) }
+    var createLoading by remember { mutableStateOf(false) }
+    var createError by remember { mutableStateOf<String?>(null) }
 
     val focusManager = LocalFocusManager.current
 
@@ -125,42 +138,67 @@ fun AddEventScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) 
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Text("Créer un évènement", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(4.dp))
-        // Legend for required fields
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("*", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.width(4.dp))
-            Text("Champs obligatoires", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Card(
+            colors = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+            ),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text("*", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                Spacer(Modifier.width(6.dp))
+                Text("Champs obligatoires", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+            }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(20.dp))
 
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
             modifier = Modifier.fillMaxWidth(),
             label = { RequiredLabel("Titre") },
-            singleLine = true
+            singleLine = true,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                focusedLabelColor = MaterialTheme.colorScheme.primary
+            )
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = description,
             onValueChange = { description = it },
             modifier = Modifier.fillMaxWidth(),
             label = { RequiredLabel("Description") },
-            minLines = 3
+            minLines = 3,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                focusedLabelColor = MaterialTheme.colorScheme.primary
+            )
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = location,
             onValueChange = { location = it },
             modifier = Modifier.fillMaxWidth(),
             label = { RequiredLabel("Lieu") },
-            singleLine = true
+            singleLine = true,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                focusedLabelColor = MaterialTheme.colorScheme.primary
+            )
         )
 
         // Inserted city selector between location and datetime
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = selectedCity?.let { it.name + " (" + it.postalCode.take(2) + ")" } ?: cityQuery,
             onValueChange = {
@@ -170,7 +208,13 @@ fun AddEventScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) 
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             placeholder = { Text("Tapez une ville (ex: Paris)") },
-            label = { RequiredLabel("Ville") }
+            label = { RequiredLabel("Ville") },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                focusedLabelColor = MaterialTheme.colorScheme.primary
+            )
         )
 
         Spacer(Modifier.height(4.dp))
@@ -185,7 +229,10 @@ fun AddEventScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) 
         }
         if (cityShowSuggestions) {
             Spacer(Modifier.height(8.dp))
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+            ) {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -236,7 +283,19 @@ fun AddEventScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) 
             readOnly = true,
             placeholder = { Text("Choisir la date et l'heure") },
             label = { RequiredLabel("Date et heure") },
-            leadingIcon = { Icon(Icons.Outlined.Event, contentDescription = "Choisir la date") }
+            leadingIcon = {
+                Icon(
+                    Icons.Outlined.Event,
+                    contentDescription = "Choisir la date",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                focusedLabelColor = MaterialTheme.colorScheme.primary
+            )
         )
         if (showDatePicker) {
             DatePickerDialog(
@@ -316,24 +375,96 @@ fun AddEventScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) 
         }
 
         Spacer(Modifier.height(12.dp))
-        Button(onClick = { /* TODO: Ajouter des photos (placeholder) */ }) {
-            Text("Ajouter des photos (placeholder)")
+        Button(
+            onClick = { /* TODO: Ajouter des photos (placeholder) */ },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        ) {
+            Text("📷 Ajouter des photos", style = MaterialTheme.typography.bodyLarge)
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
+        val scope = rememberCoroutineScope()
+
         Button(
             onClick = {
-                // TODO: Appeler la route de création d'évènement (placeholder)
-                // title, description, location, pickedDateIso, selectedTypes, selectedCity
+                // Build payload and call API
+                scope.launch {
+                    createError = null
+                    createLoading = true
+                    try {
+                        val types = selectedTypes.map { it.displayName }
+                        val body = CreateEventRequest(
+                             title = title,
+                             description = description.takeIf { it.isNotBlank() },
+                             location = location.takeIf { it.isNotBlank() },
+                             date = if (pickedDateIso.isNotBlank()) pickedDateIso else null,
+                             types = if (types.isNotEmpty()) types else null,
+                            photoUrls = null
+                         )
+                        val cityName = selectedCity?.name ?: run {
+                            createError = "Aucune ville sélectionnée"
+                            null
+                        }
+                        if (cityName != null) {
+                            val created = api.createEventForCity(cityName, body)
+                            snackbarHostState.showSnackbar("Évènement créé : ${created.title}", duration = SnackbarDuration.Short)
+                            // Reset form
+                            title = ""
+                            description = ""
+                            location = ""
+                            pickedDateDisplay = ""
+                            pickedDateIso = ""
+                            selectedTypes.clear()
+                            selectedCity = null
+                            cityQuery = ""
+                        }
+                    } catch (e: Exception) {
+                        Log.w("AddEventScreen", "Failed to create event", e)
+                        createError = e.message ?: "Erreur lors de la création"
+                        snackbarHostState.showSnackbar("Erreur: ${createError}", duration = SnackbarDuration.Short)
+                    } finally {
+                        createLoading = false
+                    }
+                }
             },
             enabled = title.isNotBlank() && description.isNotBlank() && location.isNotBlank() &&
-                    selectedCity != null && pickedDateIso.isNotBlank() && selectedTypes.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth()
+                    selectedCity != null && pickedDateIso.isNotBlank() && selectedTypes.isNotEmpty() && !createLoading,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ),
+            elevation = androidx.compose.material3.ButtonDefaults.buttonElevation(
+                defaultElevation = 4.dp,
+                pressedElevation = 8.dp
+            )
         ) {
-            Text("Créer l'évènement")
+            if (createLoading) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.height(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 3.dp
+                )
+            } else {
+                Text(
+                    "Créer l'évènement",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                )
+            }
         }
 
         Spacer(Modifier.height(24.dp))
+        if (createError != null) {
+            Text(text = createError!!, color = MaterialTheme.colorScheme.error)
+        }
     }
 }
 

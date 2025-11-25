@@ -21,6 +21,7 @@ import org.json.JSONObject
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import java.util.concurrent.atomic.AtomicBoolean
+import androidx.datastore.preferences.core.longPreferencesKey
 
 private val Context.cityStore by preferencesDataStore(name = "cities_cache")
 
@@ -29,6 +30,7 @@ data class CitiesStatus(val source: LoadSource, val count: Int, val error: Strin
 
 class CitiesRepository(private val context: Context, private val api: ApiService) {
     private val CITIES_JSON = stringPreferencesKey("cities_json")
+    private val LAST_REFRESH = longPreferencesKey("cities_last_refresh")
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private val _cities = MutableStateFlow<List<CityDto>>(emptyList())
@@ -42,8 +44,11 @@ class CitiesRepository(private val context: Context, private val api: ApiService
     fun ensureLoaded() {
         scope.launch {
             var fetchedFromNetwork = false
+            val now = System.currentTimeMillis()
             // Try load from DataStore first
-            val json = runCatching { context.cityStore.data.first()[CITIES_JSON] }.getOrNull()
+            val prefs = runCatching { context.cityStore.data.first() }.getOrNull()
+            val json = prefs?.get(CITIES_JSON)
+            val last = prefs?.get(LAST_REFRESH) ?: 0L
             if (!json.isNullOrBlank()) {
                 runCatching { decode(json) }
                     .onSuccess { list ->
@@ -82,8 +87,9 @@ class CitiesRepository(private val context: Context, private val api: ApiService
                             transform = { "${it.name} (${it.postalCode})" }
                         )
                         Log.i("CitiesRepository", "Cities sample (NETWORK): ${sample}")
-                        context.cityStore.edit { prefs ->
-                            prefs[CITIES_JSON] = encode(remote)
+                        context.cityStore.edit { p ->
+                            p[CITIES_JSON] = encode(remote)
+                            p[LAST_REFRESH] = now
                         }
                         fetchedFromNetwork = true
                     } else {
@@ -105,9 +111,10 @@ class CitiesRepository(private val context: Context, private val api: ApiService
                     }
                 }
             }
-            // Always try a background refresh at startup to update cache/state
+            // Background refresh only if stale (> 6h) and not already fetched from network in this run
             if (!fetchedFromNetwork) {
-                refreshInBackground()
+                val isStale = now - last > 6L * 60L * 60L * 1000L // 6 hours
+                if (isStale) refreshInBackground()
             }
         }
     }
@@ -121,8 +128,9 @@ class CitiesRepository(private val context: Context, private val api: ApiService
                     _cities.value = remote
                     _status.value = CitiesStatus(LoadSource.NETWORK, remote.size, null)
                     Log.d("CitiesRepository", "Background refresh fetched ${remote.size} cities, updating cache")
-                    context.cityStore.edit { prefs ->
-                        prefs[CITIES_JSON] = encode(remote)
+                    context.cityStore.edit { p ->
+                        p[CITIES_JSON] = encode(remote)
+                        p[LAST_REFRESH] = System.currentTimeMillis()
                     }
                 } else {
                     Log.w("CitiesRepository", "Background refresh returned empty list")

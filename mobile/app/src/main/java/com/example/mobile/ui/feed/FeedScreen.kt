@@ -26,59 +26,64 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.mobile.model.EventType
 import com.example.mobile.search.rankCities
-import kotlinx.coroutines.delay
-import org.json.JSONArray
-import org.json.JSONObject
+import coil.compose.AsyncImage
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
-import androidx.compose.material.icons.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.Museum
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Theaters
 import androidx.compose.material.icons.outlined.EmojiEvents
-import androidx.compose.material.icons.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Forum
 import com.example.mobile.cities.CitiesRepository
+import com.example.mobile.network.ApiService
+import com.example.mobile.network.EventDto
+import com.example.mobile.network.SearchEventsRequest
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.delay
+import androidx.compose.ui.layout.ContentScale
 
 @Composable
-fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) {
-    val context = LocalContext.current
-
+fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api: ApiService) {
     var query by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var showSuggestions by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
 
+    // Track the actually selected city (clean name) vs the input text
+    var selectedCityName by remember { mutableStateOf<String?>(null) }
+
     var selectedEventType by remember { mutableStateOf<EventType?>(null) }
 
-    // Load mocks
-    var typeCounts by remember { mutableStateOf<Map<EventType, Int>>(emptyMap()) }
-    val allEvents = remember { mutableStateListOf<MockEvent>() }
-    LaunchedEffect(Unit) {
-        typeCounts = loadEventTypeCountsFromAssets(context)
-        allEvents.clear()
-        allEvents.addAll(loadMockEventsFromAssets(context))
-    }
+    // Base events (unfiltered) and current events
+    var baseEvents by remember { mutableStateOf<List<EventDto>>(emptyList()) }
+    var events by remember { mutableStateOf<List<EventDto>>(emptyList()) }
+    var eventsLoading by remember { mutableStateOf(false) }
 
     val cityList by citiesRepo.cities.collectAsState()
 
-    // Debounced search: filter locally from cached cities
+    LaunchedEffect(Unit) {
+        eventsLoading = true
+        val initial = runCatching { api.searchEvents(SearchEventsRequest()) }.getOrElse { emptyList() }
+        val sorted = initial.sortedBy { e -> e.date?.let { runCatching { Instant.parse(it) }.getOrNull() } }
+        baseEvents = sorted
+        events = sorted
+        eventsLoading = false
+    }
+
     LaunchedEffect(query, cityList) {
         errorText = null
         val q = query.trim()
@@ -94,8 +99,29 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) {
         showSuggestions = ranked.isNotEmpty()
         isLoading = false
         if (ranked.isNotEmpty()) {
-            Log.d("FeedScreen", "Ranked city suggestions for query='${q}': ${ranked.take(5).joinToString { it.name + " (" + it.postalCode.take(2) + ")" }}")
+            val sample = ranked.take(5).joinToString { it.name + " (" + it.postalCode.take(2) + ")" }
+            Log.d("FeedScreen", "Ranked city suggestions for query='" + q + "': " + sample)
         }
+    }
+
+    LaunchedEffect(query) {
+        if (selectedCityName == null) return@LaunchedEffect
+        selectedCityName = null
+    }
+
+    LaunchedEffect(selectedCityName, selectedEventType) {
+        if (selectedCityName.isNullOrBlank() && selectedEventType == null) {
+            events = baseEvents
+            return@LaunchedEffect
+        }
+        eventsLoading = true
+        val body = SearchEventsRequest(
+            types = selectedEventType?.let { listOf(it.displayName) },
+            cityName = selectedCityName
+        )
+        val list = runCatching { api.searchEvents(body) }.getOrElse { emptyList() }
+        events = list.sortedBy { e -> e.date?.let { runCatching { Instant.parse(it) }.getOrNull() } }
+        eventsLoading = false
     }
 
     Column(
@@ -103,18 +129,24 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) {
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text(
-            text = "Recherche par ville",
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = query,
-            onValueChange = { query = it },
+            onValueChange = { txt ->
+                query = txt
+                selectedCityName = null
+            },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             placeholder = { Text("Tapez une ville (ex: Paris)") },
-            label = { Text("Ville") }
+            label = { Text("Ville") },
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = MaterialTheme.colorScheme.surface
+            )
         )
 
         Spacer(Modifier.height(4.dp))
@@ -136,7 +168,8 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) {
         if (showSuggestions) {
             Spacer(Modifier.height(8.dp))
             Card(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
             ) {
                 LazyColumn(
                     modifier = Modifier
@@ -150,6 +183,7 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) {
                                 .fillMaxWidth()
                                 .clickable {
                                     query = item
+                                    selectedCityName = item.substringBefore(" (").trim()
                                     showSuggestions = false
                                 }
                                 .padding(horizontal = 12.dp, vertical = 10.dp)
@@ -166,99 +200,139 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) {
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = "Type d'évènement",
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(20.dp))
+
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 0.dp)
         ) {
             items(EventType.entries.toList()) { type ->
                 val selected = selectedEventType == type
-                val count = typeCounts[type] ?: 0
                 val icon = type.icon()
                 FilterChip(
                     selected = selected,
                     onClick = { selectedEventType = if (selected) null else type },
                     label = {
-                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                            Icon(imageVector = icon, contentDescription = type.displayName)
-                            Spacer(Modifier.height(4.dp))
-                            Text(type.displayName, style = MaterialTheme.typography.labelMedium)
-                            if (count > 0) {
-                                Spacer(Modifier.height(2.dp))
-                                Text("${count} év.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                        Column(
+                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = type.displayName,
+                                modifier = Modifier.height(20.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                type.displayName,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                            )
                         }
                     },
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
                     colors = FilterChipDefaults.filterChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        iconColor = MaterialTheme.colorScheme.onSurface,
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    border = if (!selected) androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    ) else null
                 )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        if (selectedEventType != null || query.isNotBlank()) {
-            Text(
-                text = buildString {
-                    append("Filtre: ")
-                    if (query.isNotBlank()) append("ville=\"" + query + "\"")
-                    if (selectedEventType != null) {
-                        if (query.isNotBlank()) append(" · ")
-                        append("type=\"" + selectedEventType!!.displayName + "\"")
-                    }
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Spacer(Modifier.height(20.dp))
 
-        // Show mock events filtered by city and type (hide suggestions overlay)
-        if (!showSuggestions) {
-            Spacer(Modifier.height(16.dp))
-            Text("Évènements", style = MaterialTheme.typography.titleMedium)
+        if (eventsLoading) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
-            val now = remember { Instant.now() }
-            val formatter = remember {
-                DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm").withZone(ZoneId.systemDefault())
+        }
+        if (events.isEmpty() && !eventsLoading) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Text(
+                    "Aucun évènement trouvé.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(24.dp)
+                )
             }
-            val filtered = remember(query, selectedEventType, allEvents) {
-                allEvents
-                    .filter { it.dateIso?.let { d -> runCatching { Instant.parse(d) }.getOrNull() }?.isAfter(now) == true }
-                    .filter { ev -> query.isBlank() || ev.city.equals(query.trim(), ignoreCase = true) }
-                    .filter { ev -> selectedEventType == null || ev.types.contains(selectedEventType!!.name) }
-                    .sortedBy { Instant.parse(it.dateIso) }
-            }
-            if (filtered.isEmpty()) {
-                Text("Aucun évènement à afficher", style = MaterialTheme.typography.bodySmall)
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 32.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filtered) { ev ->
-                        Card(colors = CardDefaults.cardColors()) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text(ev.title, style = MaterialTheme.typography.titleMedium)
-                                Spacer(Modifier.height(4.dp))
-                                Text(formatter.format(Instant.parse(ev.dateIso)), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(Modifier.height(2.dp))
-                                Text("${'$'}{ev.city} · ${'$'}{ev.location}", style = MaterialTheme.typography.bodySmall)
-                                if (ev.types.isNotEmpty()) {
-                                    Spacer(Modifier.height(6.dp))
-                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        items(ev.types) { t ->
-                                            Text(t.replace('_', ' '), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                        }
+        } else {
+            val formatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm").withZone(ZoneId.systemDefault()) }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(events) { ev ->
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+                    ) {
+                        Column(Modifier.fillMaxWidth()) {
+                            val photoUrl = ev.photos?.firstOrNull()?.url
+                            if (photoUrl != null) {
+                                AsyncImage(
+                                    model = photoUrl,
+                                    contentDescription = ev.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(160.dp)
+                                )
+                            }
+                            Column(Modifier.padding(16.dp)) {
+                                Text(
+                                    ev.title,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(Modifier.height(8.dp))
+
+                                val dt = ev.date?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                                if (dt != null) {
+                                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                        Text("🕒 ", style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            formatter.format(dt),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
+                                }
+
+                                if (!ev.location.isNullOrBlank()) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                        Text(
+                                            ev.location,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(4.dp))
+                                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                    Text(
+                                        ev.city,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                                    )
                                 }
                             }
                         }
@@ -269,15 +343,6 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository) {
     }
 }
 
-private data class MockEvent(
-    val title: String,
-    val description: String?,
-    val location: String,
-    val dateIso: String?,
-    val city: String,
-    val types: List<String>
-)
-
 private fun EventType.icon() = when (this) {
     EventType.SPECTACLE -> Icons.Outlined.Theaters
     EventType.CONCERT_SPECTACLE_MUSICAL -> Icons.Outlined.MusicNote
@@ -286,38 +351,4 @@ private fun EventType.icon() = when (this) {
     EventType.VISITE_BALADE -> Icons.AutoMirrored.Outlined.DirectionsWalk
     EventType.CONFERENCE_DEBAT -> Icons.Outlined.Forum
     EventType.SPORT -> Icons.AutoMirrored.Outlined.DirectionsRun
-}
-
-private fun loadEventTypeCountsFromAssets(context: android.content.Context): Map<EventType, Int> {
-    return try {
-        val json = context.assets.open("mock/event_types_counts.json").bufferedReader().use { it.readText() }
-        val obj = JSONObject(json)
-        EventType.entries.associateWith { et -> obj.optInt(et.name, 0) }
-    } catch (_: Exception) {
-        emptyMap()
-    }
-}
-
-private fun loadMockEventsFromAssets(context: android.content.Context): List<MockEvent> {
-    return try {
-        val json = context.assets.open("mock/events.json").bufferedReader().use { it.readText() }
-        val arr = JSONArray(json)
-        buildList {
-            for (i in 0 until arr.length()) {
-                val o = arr.getJSONObject(i)
-                add(
-                    MockEvent(
-                        title = o.optString("title"),
-                        description = o.optString("description"),
-                        location = o.optString("location"),
-                        dateIso = o.optString("dateIso"),
-                        city = o.optString("city"),
-                        types = o.optJSONArray("types")?.let { ta -> List(ta.length()) { idx -> ta.getString(idx) } } ?: emptyList()
-                    )
-                )
-            }
-        }
-    } catch (_: Exception) {
-        emptyList()
-    }
 }

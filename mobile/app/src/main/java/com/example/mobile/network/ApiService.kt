@@ -17,6 +17,36 @@ data class UserDto(val id: Int, val email: String, val displayName: String)
 
 data class AuthResponse(val access_token: String, val user: UserDto)
 
+data class PhotoDto(
+    val id: Int,
+    val url: String
+)
+
+data class EventDto(
+    val id: Int,
+    val title: String,
+    val description: String? = null,
+    val location: String? = null,
+    val date: String? = null,
+    val city: String,
+    val photos: List<PhotoDto>? = null
+)
+
+data class SearchEventsRequest(
+    val types: List<String>? = null,
+    val cityName: String? = null
+)
+
+// New payload for creating an event via /events/cities/{city_name}
+data class CreateEventRequest(
+    val title: String,
+    val description: String?,
+    val location: String?,
+    val date: String?,
+    val types: List<String>?,
+    val photoUrls: List<String>?
+)
+
 interface ApiService {
     @POST("auth/login")
     suspend fun login(@Body body: LoginRequest): AuthResponse
@@ -38,4 +68,18 @@ interface ApiService {
     // Fetch user's cities with required route (trailing slash to avoid redirects)
     @GET("cities/users/{userId}/")
     suspend fun getUserCities(@Path("userId") userId: Int): List<CityDto>
+
+    @GET("events/cities/{cityName}")
+    suspend fun getEventsByCity(@Path("cityName") cityName: String): List<EventDto>
+
+    @POST("events/search")
+    suspend fun searchEvents(@Body body: SearchEventsRequest): List<EventDto>
+
+    // Create an event tied to a city (cityName in path)
+    @POST("events/cities/{cityName}")
+    suspend fun createEventForCity(@Path("cityName") cityName: String, @Body body: CreateEventRequest): EventDto
+
+    // Fetch past events for the authenticated user
+    @GET("events/me/past")
+    suspend fun getMyPastEvents(): List<EventDto>
 }

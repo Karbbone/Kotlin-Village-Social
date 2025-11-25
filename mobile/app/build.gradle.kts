@@ -72,6 +72,9 @@ dependencies {
     // Desugaring pour java.time sur minSdk < 26
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
+    // Coil image loading for Compose
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -10,11 +10,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import com.example.mobile.auth.AuthRepository
 import com.example.mobile.cities.CitiesRepository
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.CityDto
+import com.example.mobile.network.EventDto
 import com.example.mobile.search.rankCities
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,6 +52,10 @@ fun CitiesScreen(
     var query by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<CityDto>>(emptyList()) }
     var isQueryLoading by remember { mutableStateOf(false) }
+
+    // Events state for user's cities
+    var events by remember { mutableStateOf<List<EventDto>>(emptyList()) }
+    var eventsLoading by remember { mutableStateOf(false) }
 
     // Global mutation loader (add/remove + refresh)
     var isMutating by remember { mutableStateOf(false) }
@@ -86,21 +96,116 @@ fun CitiesScreen(
         }
     }
 
+    LaunchedEffect(userCities) {
+        // When user cities change, refetch events for those cities
+        if (userCities.isEmpty()) {
+            events = emptyList()
+        } else {
+            eventsLoading = true
+            val fetched = mutableListOf<EventDto>()
+            userCities.forEach { c ->
+                val list = runCatching { withContext(Dispatchers.IO) { api.getEventsByCity(c.name) } }.getOrElse { emptyList() }
+                fetched += list
+            }
+            // Optional: sort by date ascending
+            events = fetched.sortedBy { e -> e.date?.let { runCatching { Instant.parse(it) }.getOrNull() } }
+            eventsLoading = false
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
-        // Main page: events placeholder; leave bottom space for sticky button
+        // Main page: events list with space for sticky button
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
                 .padding(bottom = 88.dp)
         ) {
-            Text("Évènements liés à vos villes", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Affichage des évènements filtrés par vos villes à venir.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (eventsLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(12.dp))
+            }
+            if (events.isEmpty() && !eventsLoading) {
+                Card(
+                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Text(
+                        "Aucun évènement trouvé pour vos villes.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
+            } else {
+                val formatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm").withZone(ZoneId.systemDefault()) }
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    items(events) { ev ->
+                        ElevatedCard(
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+                        ) {
+                            Column(Modifier.fillMaxWidth()) {
+                                val photoUrl = ev.photos?.firstOrNull()?.url
+                                if (photoUrl != null) {
+                                    AsyncImage(
+                                        model = photoUrl,
+                                        contentDescription = ev.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(180.dp)
+                                    )
+                                }
+                                Column(Modifier.padding(16.dp)) {
+                                    Text(
+                                        ev.title,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+
+                                    val dt = ev.date?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                                    if (dt != null) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text("🕒 ", style = MaterialTheme.typography.bodyMedium)
+                                            Text(
+                                                formatter.format(dt),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    if (!ev.location.isNullOrBlank()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                ev.location,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            ev.city,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Sticky bottom action
@@ -114,9 +219,26 @@ fun CitiesScreen(
             Row(Modifier.padding(16.dp)) {
                 Button(
                     onClick = { if (!isMutating) showDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isMutating
-                ) { Text("Modifier mes villes") }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    enabled = !isMutating,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    elevation = androidx.compose.material3.ButtonDefaults.buttonElevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 8.dp
+                    )
+                ) {
+                    Text(
+                        "Modifier mes villes",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -205,14 +327,23 @@ fun CitiesScreen(
                         singleLine = true,
                         enabled = !isMutating && !loading,
                         placeholder = { Text("Tapez une ville (ex: Paris)") },
-                        label = { Text("Ville") }
+                        label = { Text("Ville") },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            focusedLabelColor = MaterialTheme.colorScheme.primary
+                        )
                     )
                     if (isQueryLoading && query.length >= 2) {
                         Spacer(Modifier.height(8.dp))
                         Text("Recherche en cours…", style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Card(Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                    ) {
                         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 200.dp)) {
                             items(suggestions) { c ->
                                 Row(
