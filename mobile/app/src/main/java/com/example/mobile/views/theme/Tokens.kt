@@ -1,24 +1,7 @@
-package com.example.mobile.ui.theme
+package com.example.mobile.views.theme
 
 import androidx.compose.ui.graphics.Color
 
-/**
- * Design Tokens – Couleurs
- *
- * Collez ici les valeurs issues de vos variables CSS (ex: depuis :root { --color-primary: #0066CC; ... })
- * et mappez-les vers les couleurs Material 3 utilisées par l’app.
- *
- * Guide de mapping (exemples):
- *   --color-primary           -> Light.primary / Dark.primary
- *   --on-primary              -> Light.onPrimary / Dark.onPrimary
- *   --color-secondary         -> Light.secondary / Dark.secondary
- *   --color-tertiary          -> Light.tertiary / Dark.tertiary
- *   --background              -> Light.background / Dark.background
- *   --surface                 -> Light.surface / Dark.surface
- *   --on-background           -> Light.onBackground / Dark.onBackground
- *   --on-surface              -> Light.onSurface / Dark.onSurface
- *   (ajustez si votre système de design diffère)
- */
 object Tokens {
     object Light {
         // Placeholders: remplacez par les valeurs de vos CSS variables (format #RRGGBB)

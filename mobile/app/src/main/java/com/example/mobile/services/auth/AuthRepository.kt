@@ -1,4 +1,4 @@
-package com.example.mobile.auth
+package com.example.mobile.services.auth
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit

@@ -1,6 +1,6 @@
 package com.example.mobile.network
 
-import com.example.mobile.auth.AuthRepository
+import com.example.mobile.services.auth.AuthRepository
 import okhttp3.Interceptor
 import okhttp3.Response
 

@@ -1,6 +1,5 @@
-package com.example.mobile.ui.event
+package com.example.mobile.views.event
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -17,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.EventDto
 import com.example.mobile.network.PhotoDto

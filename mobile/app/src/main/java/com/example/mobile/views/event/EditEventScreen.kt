@@ -1,4 +1,4 @@
-package com.example.mobile.ui.event
+package com.example.mobile.views.event
 
 import android.net.Uri
 import android.util.Log
@@ -28,7 +28,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.mobile.cities.CitiesRepository
+import com.example.mobile.services.cities.CitiesRepository
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.EventDto
 import com.example.mobile.network.EventTypeDto

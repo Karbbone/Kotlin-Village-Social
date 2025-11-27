@@ -1,4 +1,4 @@
-package com.example.mobile.model
+package com.example.mobile.services.model
 
 enum class EventType(val displayName: String) {
     SPECTACLE("Spectacle"),

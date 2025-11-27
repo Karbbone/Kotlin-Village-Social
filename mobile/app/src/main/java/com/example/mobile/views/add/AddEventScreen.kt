@@ -1,4 +1,4 @@
-package com.example.mobile.ui.add
+package com.example.mobile.views.add
 
 import android.util.Log
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -52,7 +52,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.background
-import com.example.mobile.cities.CitiesRepository
+import com.example.mobile.services.cities.CitiesRepository
 import androidx.compose.runtime.collectAsState
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.CreateEventRequest

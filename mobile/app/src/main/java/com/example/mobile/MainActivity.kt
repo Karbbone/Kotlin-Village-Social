@@ -14,16 +14,16 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import com.example.mobile.ui.theme.MobileTheme
-import com.example.mobile.ui.login.LoginScreen
-import com.example.mobile.ui.navigation.AppTabs
-import com.example.mobile.ui.auth.RegisterScreen
+import com.example.mobile.views.theme.MobileTheme
+import com.example.mobile.views.login.LoginScreen
+import com.example.mobile.views.navigation.AppTabs
+import com.example.mobile.views.auth.RegisterScreen
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.mobile.auth.AuthRepository
+import com.example.mobile.services.auth.AuthRepository
 import com.example.mobile.network.NetworkModule
-import com.example.mobile.cities.CitiesRepository
+import com.example.mobile.services.cities.CitiesRepository
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

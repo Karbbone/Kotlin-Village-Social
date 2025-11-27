@@ -1,5 +1,6 @@
-package com.example.mobile.cities
+package com.example.mobile.services.cities
 
+import android.Manifest
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -146,7 +147,7 @@ class CitiesRepository(private val context: Context, private val api: ApiService
     private fun isNetworkAvailable(context: Context): Boolean {
         // Gracefully handle missing permission to avoid crashes
         val hasPermission = ContextCompat.checkSelfPermission(
-            context, android.Manifest.permission.ACCESS_NETWORK_STATE
+            context, Manifest.permission.ACCESS_NETWORK_STATE
         ) == PackageManager.PERMISSION_GRANTED
         if (!hasPermission) return true // fallback: assume network available, let the call fail gracefully
         return try {

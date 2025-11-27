@@ -1,7 +1,7 @@
 package com.example.mobile.network
 
 import android.content.Context
-import com.example.mobile.auth.AuthRepository
+import com.example.mobile.services.auth.AuthRepository
 import okhttp3.Cache
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient

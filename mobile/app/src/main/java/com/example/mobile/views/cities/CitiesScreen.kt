@@ -1,4 +1,4 @@
-package com.example.mobile.ui.cities
+package com.example.mobile.views.cities
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,8 +12,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
-import com.example.mobile.auth.AuthRepository
-import com.example.mobile.cities.CitiesRepository
+import com.example.mobile.services.auth.AuthRepository
+import com.example.mobile.services.cities.CitiesRepository
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.CityDto
 import com.example.mobile.network.EventDto

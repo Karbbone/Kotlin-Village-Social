@@ -1,4 +1,4 @@
-package com.example.mobile.ui.navigation
+package com.example.mobile.views.navigation
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -33,15 +33,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.mobile.auth.AuthRepository
-import com.example.mobile.cities.CitiesRepository
+import com.example.mobile.services.auth.AuthRepository
+import com.example.mobile.services.cities.CitiesRepository
 import com.example.mobile.network.NetworkModule
-import com.example.mobile.ui.add.AddEventScreen
-import com.example.mobile.ui.cities.CitiesScreen
-import com.example.mobile.ui.event.EventDetailScreen
-import com.example.mobile.ui.event.EditEventScreen
-import com.example.mobile.ui.feed.FeedScreen
-import com.example.mobile.ui.profile.ProfileScreen
+import com.example.mobile.views.add.AddEventScreen
+import com.example.mobile.views.cities.CitiesScreen
+import com.example.mobile.views.event.EventDetailScreen
+import com.example.mobile.views.event.EditEventScreen
+import com.example.mobile.views.feed.FeedScreen
+import com.example.mobile.views.profile.ProfileScreen
 import com.example.mobile.network.EventDto
 
 sealed class NavItem(

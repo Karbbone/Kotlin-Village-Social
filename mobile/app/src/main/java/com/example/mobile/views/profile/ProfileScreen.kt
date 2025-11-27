@@ -1,4 +1,4 @@
-package com.example.mobile.ui.profile
+package com.example.mobile.views.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,7 +25,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.mobile.auth.AuthRepository
+import com.example.mobile.services.auth.AuthRepository
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.EventDto
 import com.example.mobile.network.PhotoDto

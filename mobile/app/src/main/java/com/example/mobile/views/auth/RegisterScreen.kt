@@ -1,4 +1,4 @@
-package com.example.mobile.ui.auth
+package com.example.mobile.views.auth
 
 import android.util.Patterns
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +39,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import com.example.mobile.auth.AuthRepository
+import com.example.mobile.services.auth.AuthRepository
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.RegisterRequest
 import kotlinx.coroutines.Dispatchers
