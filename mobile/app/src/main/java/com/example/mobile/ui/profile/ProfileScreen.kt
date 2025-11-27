@@ -1,7 +1,7 @@
 package com.example.mobile.ui.profile
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,10 +25,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
 import com.example.mobile.auth.AuthRepository
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.EventDto
+import com.example.mobile.network.PhotoDto
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.time.Instant
@@ -36,7 +36,12 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun ProfileScreen(authRepo: AuthRepository, api: ApiService, @Suppress("UNUSED_PARAMETER") snackbarHostState: SnackbarHostState) {
+fun ProfileScreen(
+    authRepo: AuthRepository,
+    api: ApiService,
+    @Suppress("UNUSED_PARAMETER") snackbarHostState: SnackbarHostState,
+    onEventClick: (Int) -> Unit = {}
+) {
     val scope = rememberCoroutineScope()
     val userJson by authRepo.userJsonState.collectAsState()
     val displayName = userJson?.let {
@@ -174,7 +179,7 @@ fun ProfileScreen(authRepo: AuthRepository, api: ApiService, @Suppress("UNUSED_P
 
             // Events list
             items(events) { ev ->
-                EventCard(event = ev)
+                EventCard(event = ev, onClick = { onEventClick(ev.id) })
             }
         }
 
@@ -195,20 +200,21 @@ fun ProfileScreen(authRepo: AuthRepository, api: ApiService, @Suppress("UNUSED_P
 }
 
 @Composable
-private fun EventCard(event: EventDto) {
+private fun EventCard(event: EventDto, onClick: () -> Unit) {
     val formatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm").withZone(ZoneId.systemDefault()) }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 8.dp)
+            .clickable { onClick() },
         colors = androidx.compose.material3.CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
     ) {
         Column(Modifier.fillMaxWidth()) {
-            val photoUrl = event.photos?.firstOrNull()?.url
+            val photoUrl = getFirstPhotoUrl(event.photos)
             if (photoUrl != null) {
                 coil.compose.AsyncImage(
                     model = photoUrl,
@@ -262,8 +268,52 @@ private fun EventCard(event: EventDto) {
                         fontWeight = FontWeight.Medium
                     )
                 }
+
+                // Display event types
+                if (!event.types.isNullOrEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    androidx.compose.foundation.lazy.LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                                        items(event.types) { type ->
+                            Card(
+                                colors = androidx.compose.material3.CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                ),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = type.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
+// Helper function to filter supported photo formats and normalize URLs
+private fun getSupportedPhotos(photos: List<PhotoDto>?): List<PhotoDto> {
+    if (photos.isNullOrEmpty()) return emptyList()
+
+    return photos
+        .filter { photo ->
+            // Filter out HEIC format as it's not well supported on Android
+            val url = photo.url.lowercase()
+            !url.endsWith(".heic") && !url.contains(".heic?")
+        }
+        .map { photo ->
+            // Replace localhost with 10.0.2.2 (Android emulator host IP)
+            photo.copy(url = photo.url.replace("http://localhost:", "http://10.0.2.2:"))
+        }
+}
+
+// Get the first supported photo URL for event cards
+private fun getFirstPhotoUrl(photos: List<PhotoDto>?): String? {
+    return getSupportedPhotos(photos).firstOrNull()?.url
+}

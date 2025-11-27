@@ -12,7 +12,8 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 object NetworkModule {
-    private const val BASE_URL = "https://mobile.maillet.bzh/"
+    // Pour émulateur Android: utilisez 10.0.2.2 au lieu de localhost
+    private const val BASE_URL = "http://10.0.2.2:3000/"
 
     fun createApi(context: Context, authRepository: AuthRepository): ApiService {
         val logging = HttpLoggingInterceptor().apply {

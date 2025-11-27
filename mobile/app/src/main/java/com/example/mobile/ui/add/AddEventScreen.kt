@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material3.AlertDialog
@@ -43,7 +44,6 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.mobile.model.EventType
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -59,11 +59,24 @@ import com.example.mobile.network.CreateEventRequest
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import com.example.mobile.network.CityDto
+import com.example.mobile.network.EventTypeDto
 import com.example.mobile.search.rankCities
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import coil.compose.AsyncImage
+import androidx.compose.ui.platform.LocalContext
+import com.example.mobile.utils.urisToMultipartParts
+import com.example.mobile.utils.toRequestBody
+import com.example.mobile.utils.stringsToMultipartParts
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +86,7 @@ fun AddEventScreen(
     api: ApiService,
     snackbarHostState: SnackbarHostState
 ) {
+    val context = LocalContext.current
     // Text fields
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -88,7 +102,9 @@ fun AddEventScreen(
     var selectedLocalDate by remember { mutableStateOf<LocalDate?>(null) }
 
     // Multi-select event types via inline checkboxes
-    val selectedTypes = remember { mutableStateListOf<EventType>() }
+    val selectedTypes = remember { mutableStateListOf<String>() }
+    var availableTypes by remember { mutableStateOf<List<EventTypeDto>>(emptyList()) }
+    var typesLoading by remember { mutableStateOf(true) }
 
     // City selector state using cached repo
     var cityQuery by remember { mutableStateOf("") }
@@ -100,6 +116,16 @@ fun AddEventScreen(
     var createLoading by remember { mutableStateOf(false) }
     var createError by remember { mutableStateOf<String?>(null) }
 
+    // Photo picker state
+    val selectedPhotos = remember { mutableStateListOf<Uri>() }
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 5),
+        onResult = { uris ->
+            selectedPhotos.clear()
+            selectedPhotos.addAll(uris)
+        }
+    )
+
     val focusManager = LocalFocusManager.current
 
     fun openPickersIfNeeded() {
@@ -108,6 +134,18 @@ fun AddEventScreen(
     }
 
     val cities by citiesRepo.cities.collectAsState()
+
+    // Load event types from API
+    LaunchedEffect(Unit) {
+        typesLoading = true
+        try {
+            availableTypes = api.getEventTypes()
+        } catch (e: Exception) {
+            Log.e("AddEventScreen", "Failed to load event types", e)
+        } finally {
+            typesLoading = false
+        }
+    }
 
     // Debounced local filtering of cached cities
     LaunchedEffect(cityQuery, cities) {
@@ -353,37 +391,77 @@ fun AddEventScreen(
         }
         Spacer(Modifier.height(6.dp))
         // Inline list of checkboxes for multi-select
-        Column {
-            EventType.entries.forEach { type ->
-                val checked = selectedTypes.contains(type)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    Checkbox(
-                        checked = checked,
-                        onCheckedChange = {
-                            if (checked) selectedTypes.remove(type) else selectedTypes.add(type)
-                        }
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Text(type.displayName)
+        if (typesLoading) {
+            androidx.compose.material3.CircularProgressIndicator(
+                modifier = Modifier.padding(16.dp)
+            )
+        } else {
+            Column {
+                availableTypes.forEach { type ->
+                    val checked = selectedTypes.contains(type.name)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (checked) selectedTypes.remove(type.name) else selectedTypes.add(type.name)
+                            }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Checkbox(
+                            checked = checked,
+                            onCheckedChange = {
+                                if (checked) selectedTypes.remove(type.name) else selectedTypes.add(type.name)
+                            }
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(type.name)
+                    }
                 }
             }
         }
 
         Spacer(Modifier.height(12.dp))
         Button(
-            onClick = { /* TODO: Ajouter des photos (placeholder) */ },
+            onClick = {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
             shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
             colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             )
         ) {
-            Text("📷 Ajouter des photos", style = MaterialTheme.typography.bodyLarge)
+            Text("📷 Ajouter des photos (${selectedPhotos.size}/5)", style = MaterialTheme.typography.bodyLarge)
+        }
+
+        // Display selected photos
+        if (selectedPhotos.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+            ) {
+                selectedPhotos.forEach { uri ->
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        AsyncImage(
+                            model = uri,
+                            contentDescription = "Photo sélectionnée",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(Modifier.height(20.dp))
@@ -396,21 +474,38 @@ fun AddEventScreen(
                     createError = null
                     createLoading = true
                     try {
-                        val types = selectedTypes.map { it.displayName }
-                        val body = CreateEventRequest(
-                             title = title,
-                             description = description.takeIf { it.isNotBlank() },
-                             location = location.takeIf { it.isNotBlank() },
-                             date = if (pickedDateIso.isNotBlank()) pickedDateIso else null,
-                             types = if (types.isNotEmpty()) types else null,
-                            photoUrls = null
-                         )
                         val cityName = selectedCity?.name ?: run {
                             createError = "Aucune ville sélectionnée"
                             null
                         }
                         if (cityName != null) {
-                            val created = api.createEventForCity(cityName, body)
+                            // Use multipart API if photos are selected
+                            val created = if (selectedPhotos.isNotEmpty() || selectedTypes.isNotEmpty()) {
+                                val photoParts = urisToMultipartParts(context, selectedPhotos)
+                                val typesParts = stringsToMultipartParts("types", selectedTypes.toList())
+
+                                api.createEventWithPhotos(
+                                    cityName = cityName,
+                                    title = title.toRequestBody(),
+                                    description = description.takeIf { it.isNotBlank() }?.toRequestBody(),
+                                    location = location.takeIf { it.isNotBlank() }?.toRequestBody(),
+                                    date = pickedDateIso.takeIf { it.isNotBlank() }?.toRequestBody(),
+                                    types = typesParts,
+                                    photos = photoParts
+                                )
+                            } else {
+                                // Use JSON API if no photos
+                                val body = CreateEventRequest(
+                                    title = title,
+                                    description = description.takeIf { it.isNotBlank() },
+                                    location = location.takeIf { it.isNotBlank() },
+                                    date = if (pickedDateIso.isNotBlank()) pickedDateIso else null,
+                                    types = if (selectedTypes.isNotEmpty()) selectedTypes.toList() else null,
+                                    photoUrls = null
+                                )
+                                api.createEventForCity(cityName, body)
+                            }
+
                             snackbarHostState.showSnackbar("Évènement créé : ${created.title}", duration = SnackbarDuration.Short)
                             // Reset form
                             title = ""
@@ -421,6 +516,7 @@ fun AddEventScreen(
                             selectedTypes.clear()
                             selectedCity = null
                             cityQuery = ""
+                            selectedPhotos.clear()
                         }
                     } catch (e: Exception) {
                         Log.w("AddEventScreen", "Failed to create event", e)

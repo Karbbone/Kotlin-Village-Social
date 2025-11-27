@@ -32,9 +32,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.mobile.model.EventType
 import com.example.mobile.search.rankCities
 import coil.compose.AsyncImage
+import com.example.mobile.network.EventTypeDto
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -49,14 +49,21 @@ import androidx.compose.material.icons.outlined.Forum
 import com.example.mobile.cities.CitiesRepository
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.EventDto
+import com.example.mobile.network.PhotoDto
 import com.example.mobile.network.SearchEventsRequest
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.delay
 import androidx.compose.ui.layout.ContentScale
+import com.example.mobile.utils.getFirstPhotoUrl
 
 @Composable
-fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api: ApiService) {
+fun FeedScreen(
+    modifier: Modifier = Modifier,
+    citiesRepo: CitiesRepository,
+    api: ApiService,
+    onEventClick: (Int) -> Unit = {}
+) {
     var query by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var showSuggestions by remember { mutableStateOf(false) }
@@ -66,7 +73,8 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api:
     // Track the actually selected city (clean name) vs the input text
     var selectedCityName by remember { mutableStateOf<String?>(null) }
 
-    var selectedEventType by remember { mutableStateOf<EventType?>(null) }
+    var selectedEventType by remember { mutableStateOf<String?>(null) }
+    var availableTypes by remember { mutableStateOf<List<EventTypeDto>>(emptyList()) }
 
     // Base events (unfiltered) and current events
     var baseEvents by remember { mutableStateOf<List<EventDto>>(emptyList()) }
@@ -76,6 +84,14 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api:
     val cityList by citiesRepo.cities.collectAsState()
 
     LaunchedEffect(Unit) {
+        // Load event types
+        try {
+            availableTypes = api.getEventTypes()
+        } catch (e: Exception) {
+            Log.e("FeedScreen", "Failed to load event types", e)
+        }
+
+        // Load initial events
         eventsLoading = true
         val initial = runCatching { api.searchEvents(SearchEventsRequest()) }.getOrElse { emptyList() }
         val sorted = initial.sortedBy { e -> e.date?.let { runCatching { Instant.parse(it) }.getOrNull() } }
@@ -104,23 +120,48 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api:
         }
     }
 
-    LaunchedEffect(query) {
-        if (selectedCityName == null) return@LaunchedEffect
-        selectedCityName = null
-    }
+    // This effect should NOT reset selectedCityName when query changes
+    // because when user selects a city, we update both query AND selectedCityName
+    // We only want to reset selectedCityName when user manually types (not when selecting from suggestions)
 
     LaunchedEffect(selectedCityName, selectedEventType) {
-        if (selectedCityName.isNullOrBlank() && selectedEventType == null) {
+        val cityName = selectedCityName
+        val eventType = selectedEventType
+
+        Log.d("FeedScreen", "LaunchedEffect triggered - cityName: $cityName, eventType: $eventType")
+
+        if (cityName.isNullOrBlank() && eventType == null) {
+            Log.d("FeedScreen", "No filters, showing baseEvents")
             events = baseEvents
             return@LaunchedEffect
         }
         eventsLoading = true
-        val body = SearchEventsRequest(
-            types = selectedEventType?.let { listOf(it.displayName) },
-            cityName = selectedCityName
-        )
-        val list = runCatching { api.searchEvents(body) }.getOrElse { emptyList() }
+
+        val list = if (!cityName.isNullOrBlank()) {
+            // Use events/cities/{cityName} when a city is selected
+            Log.d("FeedScreen", "Fetching events for city: $cityName")
+            val cityEvents = runCatching {
+                api.getEventsByCity(cityName)
+            }.getOrElse { e ->
+                Log.e("FeedScreen", "Failed to fetch events for city: $cityName", e)
+                emptyList()
+            }
+            Log.d("FeedScreen", "Fetched ${cityEvents.size} events for city: $cityName")
+            // Apply type filter locally if a type is also selected
+            if (eventType != null) {
+                cityEvents.filter { ev -> ev.types?.any { it.name == eventType } == true }
+            } else {
+                cityEvents
+            }
+        } else {
+            // Only type filter, use search API
+            Log.d("FeedScreen", "Fetching events by type: $eventType")
+            val body = SearchEventsRequest(types = eventType?.let { listOf(it) })
+            runCatching { api.searchEvents(body) }.getOrElse { emptyList() }
+        }
+
         events = list.sortedBy { e -> e.date?.let { runCatching { Instant.parse(it) }.getOrNull() } }
+        Log.d("FeedScreen", "Final events count: ${events.size}")
         eventsLoading = false
     }
 
@@ -132,8 +173,17 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api:
         OutlinedTextField(
             value = query,
             onValueChange = { txt ->
-                query = txt
-                selectedCityName = null
+                // If the user is typing (text is different), reset selectedCityName
+                // This allows filtering suggestions while typing
+                if (txt != query) {
+                    query = txt
+                    // Only reset if the new text doesn't match the format "CityName (XX)"
+                    // which would indicate a selection was just made
+                    if (!txt.contains(" (") || txt.length < query.length) {
+                        Log.d("FeedScreen", "User typing, resetting selectedCityName")
+                        selectedCityName = null
+                    }
+                }
             },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
@@ -182,8 +232,10 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api:
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
+                                    val cityName = item.substringBefore(" (").trim()
+                                    Log.d("FeedScreen", "City selected: $cityName (from: $item)")
                                     query = item
-                                    selectedCityName = item.substringBefore(" (").trim()
+                                    selectedCityName = cityName
                                     showSuggestions = false
                                 }
                                 .padding(horizontal = 12.dp, vertical = 10.dp)
@@ -206,12 +258,12 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api:
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 0.dp)
         ) {
-            items(EventType.entries.toList()) { type ->
-                val selected = selectedEventType == type
-                val icon = type.icon()
+            items(availableTypes) { type ->
+                val selected = selectedEventType == type.name
+                val icon = getIconForEventType(type.name)
                 FilterChip(
                     selected = selected,
-                    onClick = { selectedEventType = if (selected) null else type },
+                    onClick = { selectedEventType = if (selected) null else type.name },
                     label = {
                         Column(
                             horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
@@ -219,12 +271,12 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api:
                         ) {
                             Icon(
                                 imageVector = icon,
-                                contentDescription = type.displayName,
+                                contentDescription = type.name,
                                 modifier = Modifier.height(20.dp)
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                type.displayName,
+                                type.name,
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
                             )
@@ -274,13 +326,14 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api:
             ) {
                 items(events) { ev ->
                     Card(
+                        modifier = Modifier.clickable { onEventClick(ev.id) },
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         ),
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
                     ) {
                         Column(Modifier.fillMaxWidth()) {
-                            val photoUrl = ev.photos?.firstOrNull()?.url
+                            val photoUrl = getFirstPhotoUrl(ev.photos)
                             if (photoUrl != null) {
                                 AsyncImage(
                                     model = photoUrl,
@@ -334,6 +387,41 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api:
                                         fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                                     )
                                 }
+
+                                // Display all event types (tags)
+                                if (!ev.types.isNullOrEmpty()) {
+                                    Spacer(Modifier.height(8.dp))
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        items(ev.types) { type ->
+                                            val isSelectedFilter = type.name == selectedEventType
+                                            Card(
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = if (isSelectedFilter)
+                                                        MaterialTheme.colorScheme.primaryContainer
+                                                    else
+                                                        MaterialTheme.colorScheme.tertiaryContainer
+                                                ),
+                                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                                            ) {
+                                                Text(
+                                                    text = type.name,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (isSelectedFilter)
+                                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                                    else
+                                                        MaterialTheme.colorScheme.onTertiaryContainer,
+                                                    fontWeight = if (isSelectedFilter)
+                                                        androidx.compose.ui.text.font.FontWeight.Bold
+                                                    else
+                                                        androidx.compose.ui.text.font.FontWeight.Normal,
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -343,12 +431,34 @@ fun FeedScreen(modifier: Modifier = Modifier, citiesRepo: CitiesRepository, api:
     }
 }
 
-private fun EventType.icon() = when (this) {
-    EventType.SPECTACLE -> Icons.Outlined.Theaters
-    EventType.CONCERT_SPECTACLE_MUSICAL -> Icons.Outlined.MusicNote
-    EventType.ACTIVITE_DE_LOISIRS -> Icons.Outlined.EmojiEvents
-    EventType.EXPOSITION_MUSEE -> Icons.Outlined.Museum
-    EventType.VISITE_BALADE -> Icons.AutoMirrored.Outlined.DirectionsWalk
-    EventType.CONFERENCE_DEBAT -> Icons.Outlined.Forum
-    EventType.SPORT -> Icons.AutoMirrored.Outlined.DirectionsRun
+// Helper function to filter supported photo formats and normalize URLs
+private fun getSupportedPhotos(photos: List<PhotoDto>?): List<PhotoDto> {
+    if (photos.isNullOrEmpty()) return emptyList()
+
+    return photos
+        .filter { photo ->
+            // Filter out HEIC format as it's not well supported on Android
+            val url = photo.url.lowercase()
+            !url.endsWith(".heic") && !url.contains(".heic?")
+        }
+        .map { photo ->
+            // Replace localhost with 10.0.2.2 (Android emulator host IP)
+            photo.copy(url = photo.url.replace("http://localhost:", "http://10.0.2.2:"))
+        }
+}
+
+// Get the first supported photo URL for event cards
+private fun getFirstPhotoUrl(photos: List<PhotoDto>?): String? {
+    return getSupportedPhotos(photos).firstOrNull()?.url
+}
+
+private fun getIconForEventType(typeName: String) = when (typeName.lowercase()) {
+    "spectacle" -> Icons.Outlined.Theaters
+    "concert, spectacle musical", "concert" -> Icons.Outlined.MusicNote
+    "activité de loisirs", "loisirs" -> Icons.Outlined.EmojiEvents
+    "exposition, musée", "musée", "exposition" -> Icons.Outlined.Museum
+    "visite, balade", "visite", "balade" -> Icons.AutoMirrored.Outlined.DirectionsWalk
+    "conférence, débat", "conférence", "débat" -> Icons.Outlined.Forum
+    "sport" -> Icons.AutoMirrored.Outlined.DirectionsRun
+    else -> Icons.Outlined.EmojiEvents // Default icon
 }

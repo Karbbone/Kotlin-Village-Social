@@ -8,6 +8,7 @@ import { CitiesModule } from './cities/cities.module';
 import { EventPhoto } from './entities/event-photo.entity';
 import { Event } from './entities/event.entity';
 import { User } from './entities/user.entity';
+import { EventTypesModule } from './event-types/event-types.module';
 import { EventsModule } from './events/events.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { EventsModule } from './events/events.module';
     TypeOrmModule.forFeature([User, Event, EventPhoto]),
     AuthModule,
     EventsModule,
+    EventTypesModule,
     CitiesModule,
   ],
   controllers: [AppController],

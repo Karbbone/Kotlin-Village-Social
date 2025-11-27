@@ -6,6 +6,10 @@ import retrofit2.http.GET
 import retrofit2.http.DELETE
 import retrofit2.http.Path
 import retrofit2.Response
+import retrofit2.http.Multipart
+import retrofit2.http.Part
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 
 data class LoginRequest(val email: String, val password: String)
 data class RegisterRequest(val displayName: String, val email: String, val password: String)
@@ -22,6 +26,10 @@ data class PhotoDto(
     val url: String
 )
 
+data class EventTypeDto(
+    val name: String
+)
+
 data class EventDto(
     val id: Int,
     val title: String,
@@ -29,7 +37,8 @@ data class EventDto(
     val location: String? = null,
     val date: String? = null,
     val city: String,
-    val photos: List<PhotoDto>? = null
+    val photos: List<PhotoDto>? = null,
+    val types: List<EventTypeDto>? = null
 )
 
 data class SearchEventsRequest(
@@ -45,6 +54,15 @@ data class CreateEventRequest(
     val date: String?,
     val types: List<String>?,
     val photoUrls: List<String>?
+)
+
+// Payload for updating an event via PATCH /events/:id
+data class UpdateEventRequest(
+    val title: String?,
+    val description: String?,
+    val location: String?,
+    val date: String?,
+    val types: List<String>?
 )
 
 interface ApiService {
@@ -79,7 +97,40 @@ interface ApiService {
     @POST("events/cities/{cityName}")
     suspend fun createEventForCity(@Path("cityName") cityName: String, @Body body: CreateEventRequest): EventDto
 
+    // Create an event with photos (multipart/form-data)
+    @Multipart
+    @POST("events/cities/{cityName}")
+    suspend fun createEventWithPhotos(
+        @Path("cityName") cityName: String,
+        @Part("title") title: RequestBody,
+        @Part("description") description: RequestBody?,
+        @Part("location") location: RequestBody?,
+        @Part("date") date: RequestBody?,
+        @Part types: List<MultipartBody.Part>,
+        @Part photos: List<MultipartBody.Part>
+    ): EventDto
+
     // Fetch past events for the authenticated user
     @GET("events/me/past")
     suspend fun getMyPastEvents(): List<EventDto>
+
+    // Fetch all available event types
+    @GET("event-types")
+    suspend fun getEventTypes(): List<EventTypeDto>
+
+    // Get event details by ID
+    @GET("events/{id}")
+    suspend fun getEventById(@Path("id") id: Int): EventDto
+
+    // Update an event (only creator can modify)
+    @retrofit2.http.PATCH("events/{id}")
+    suspend fun updateEvent(@Path("id") id: Int, @Body body: UpdateEventRequest): EventDto
+
+    // Delete an event (only creator can delete)
+    @DELETE("events/{id}")
+    suspend fun deleteEvent(@Path("id") id: Int): Response<Unit>
+
+    // Delete a photo from an event
+    @DELETE("events/photos/{photoId}")
+    suspend fun deleteEventPhoto(@Path("photoId") photoId: Int): Response<Unit>
 }

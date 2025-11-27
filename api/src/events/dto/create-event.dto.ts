@@ -6,10 +6,6 @@ export class CreateEventDto {
   date!: string;
   // Nom de la ville (si vous préférez l'envoyer dans le body plutôt que dans l'URL)
   city?: string;
-  // Types d'événement (ex: ["Sport", "Concert"]) - privilégier ce champ
+  // Types d'événement (ex: ["Sport", "Concert"])
   types?: string[];
-  // Compatibilité descendante: ancien champ unique
-  type?: string;
-  // Optional: array of photo URLs to create EventPhoto entries
-  photoUrls?: string[];
 }

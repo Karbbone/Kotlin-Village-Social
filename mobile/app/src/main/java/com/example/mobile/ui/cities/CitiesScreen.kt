@@ -17,6 +17,7 @@ import com.example.mobile.cities.CitiesRepository
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.CityDto
 import com.example.mobile.network.EventDto
+import com.example.mobile.network.PhotoDto
 import com.example.mobile.search.rankCities
 import java.time.Instant
 import java.time.ZoneId
@@ -32,7 +33,8 @@ fun CitiesScreen(
     authRepo: AuthRepository,
     citiesRepo: CitiesRepository,
     snackbarHostState: SnackbarHostState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEventClick: (Int) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     val userJson by authRepo.userJsonState.collectAsState()
@@ -143,10 +145,11 @@ fun CitiesScreen(
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(events) { ev ->
                         ElevatedCard(
+                            modifier = Modifier.clickable { onEventClick(ev.id) },
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
                         ) {
                             Column(Modifier.fillMaxWidth()) {
-                                val photoUrl = ev.photos?.firstOrNull()?.url
+                                val photoUrl = getFirstPhotoUrl(ev.photos)
                                 if (photoUrl != null) {
                                     AsyncImage(
                                         model = photoUrl,
@@ -199,6 +202,30 @@ fun CitiesScreen(
                                             color = MaterialTheme.colorScheme.primary,
                                             fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                                         )
+                                    }
+
+                                    // Display all event types
+                                    if (!ev.types.isNullOrEmpty()) {
+                                        Spacer(Modifier.height(8.dp))
+                                        androidx.compose.foundation.lazy.LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            items(ev.types) { type ->
+                                                Card(
+                                                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                                                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                                    ),
+                                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                                                ) {
+                                                    Text(
+                                                        text = type.name,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -383,3 +410,25 @@ fun CitiesScreen(
         )
     }
 }
+
+// Helper function to filter supported photo formats and normalize URLs
+private fun getSupportedPhotos(photos: List<PhotoDto>?): List<PhotoDto> {
+    if (photos.isNullOrEmpty()) return emptyList()
+
+    return photos
+        .filter { photo ->
+            // Filter out HEIC format as it's not well supported on Android
+            val url = photo.url.lowercase()
+            !url.endsWith(".heic") && !url.contains(".heic?")
+        }
+        .map { photo ->
+            // Replace localhost with 10.0.2.2 (Android emulator host IP)
+            photo.copy(url = photo.url.replace("http://localhost:", "http://10.0.2.2:"))
+        }
+}
+
+// Get the first supported photo URL for event cards
+private fun getFirstPhotoUrl(photos: List<PhotoDto>?): String? {
+    return getSupportedPhotos(photos).firstOrNull()?.url
+}
+
