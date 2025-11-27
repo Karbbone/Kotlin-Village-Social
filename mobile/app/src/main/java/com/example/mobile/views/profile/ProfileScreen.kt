@@ -29,6 +29,7 @@ import com.example.mobile.services.auth.AuthRepository
 import com.example.mobile.network.ApiService
 import com.example.mobile.network.EventDto
 import com.example.mobile.network.PhotoDto
+import com.example.mobile.components.EventCard
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.time.Instant
@@ -195,104 +196,6 @@ fun ProfileScreen(
             )
         ) {
             Text("Se déconnecter", style = MaterialTheme.typography.bodyLarge)
-        }
-    }
-}
-
-@Composable
-private fun EventCard(event: EventDto, onClick: () -> Unit) {
-    val formatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm").withZone(ZoneId.systemDefault()) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clickable { onClick() },
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
-    ) {
-        Column(Modifier.fillMaxWidth()) {
-            val photoUrl = getFirstPhotoUrl(event.photos)
-            if (photoUrl != null) {
-                coil.compose.AsyncImage(
-                    model = photoUrl,
-                    contentDescription = event.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                )
-            }
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    event.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(8.dp))
-
-                val dt = event.date?.let { runCatching { Instant.parse(it) }.getOrNull() }
-                if (dt != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🕒 ", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            formatter.format(dt),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                if (!event.location.isNullOrBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            event.location,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        event.city,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
-                // Display event types
-                if (!event.types.isNullOrEmpty()) {
-                    Spacer(Modifier.height(8.dp))
-                    androidx.compose.foundation.lazy.LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                                        items(event.types) { type ->
-                            Card(
-                                colors = androidx.compose.material3.CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                                ),
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = type.name,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }

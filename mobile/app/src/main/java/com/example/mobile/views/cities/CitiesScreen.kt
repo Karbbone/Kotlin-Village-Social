@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import com.example.mobile.components.EventCard
 
 @Composable
 fun CitiesScreen(
@@ -144,92 +145,7 @@ fun CitiesScreen(
                 val formatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy · HH:mm").withZone(ZoneId.systemDefault()) }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     items(events) { ev ->
-                        ElevatedCard(
-                            modifier = Modifier.clickable { onEventClick(ev.id) },
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
-                        ) {
-                            Column(Modifier.fillMaxWidth()) {
-                                val photoUrl = getFirstPhotoUrl(ev.photos)
-                                if (photoUrl != null) {
-                                    AsyncImage(
-                                        model = photoUrl,
-                                        contentDescription = ev.title,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(180.dp)
-                                    )
-                                }
-                                Column(Modifier.padding(16.dp)) {
-                                    Text(
-                                        ev.title,
-                                        style = MaterialTheme.typography.titleLarge,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-
-                                    val dt = ev.date?.let { runCatching { Instant.parse(it) }.getOrNull() }
-                                    if (dt != null) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text("🕒 ", style = MaterialTheme.typography.bodyMedium)
-                                            Text(
-                                                formatter.format(dt),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-
-                                    if (!ev.location.isNullOrBlank()) {
-                                        Spacer(Modifier.height(4.dp))
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                ev.location,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(Modifier.height(4.dp))
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            ev.city,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                                        )
-                                    }
-
-                                    // Display all event types
-                                    if (!ev.types.isNullOrEmpty()) {
-                                        Spacer(Modifier.height(8.dp))
-                                        androidx.compose.foundation.lazy.LazyRow(
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            items(ev.types) { type ->
-                                                Card(
-                                                    colors = androidx.compose.material3.CardDefaults.cardColors(
-                                                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                                                    ),
-                                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-                                                ) {
-                                                    Text(
-                                                        text = type.name,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        EventCard(event = ev, modifier = Modifier, onClick = { onEventClick(ev.id) })
                     }
                 }
             }
@@ -431,4 +347,3 @@ private fun getSupportedPhotos(photos: List<PhotoDto>?): List<PhotoDto> {
 private fun getFirstPhotoUrl(photos: List<PhotoDto>?): String? {
     return getSupportedPhotos(photos).firstOrNull()?.url
 }
-

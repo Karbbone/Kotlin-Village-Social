@@ -56,6 +56,7 @@ import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.delay
 import androidx.compose.ui.layout.ContentScale
 import com.example.mobile.utils.getFirstPhotoUrl
+import com.example.mobile.components.EventCard
 
 @Composable
 fun FeedScreen(
@@ -325,106 +326,7 @@ fun FeedScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(events) { ev ->
-                    Card(
-                        modifier = Modifier.clickable { onEventClick(ev.id) },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
-                    ) {
-                        Column(Modifier.fillMaxWidth()) {
-                            val photoUrl = getFirstPhotoUrl(ev.photos)
-                            if (photoUrl != null) {
-                                AsyncImage(
-                                    model = photoUrl,
-                                    contentDescription = ev.title,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(160.dp)
-                                )
-                            }
-                            Column(Modifier.padding(16.dp)) {
-                                Text(
-                                    ev.title,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Spacer(Modifier.height(8.dp))
-
-                                val dt = ev.date?.let { runCatching { Instant.parse(it) }.getOrNull() }
-                                if (dt != null) {
-                                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                        Text("🕒 ", style = MaterialTheme.typography.bodyMedium)
-                                        Text(
-                                            formatter.format(dt),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-
-                                if (!ev.location.isNullOrBlank()) {
-                                    Spacer(Modifier.height(4.dp))
-                                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                        Text(
-                                            ev.location,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                }
-
-                                Spacer(Modifier.height(4.dp))
-                                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                    Text(
-                                        ev.city,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                                    )
-                                }
-
-                                // Display all event types (tags)
-                                if (!ev.types.isNullOrEmpty()) {
-                                    Spacer(Modifier.height(8.dp))
-                                    LazyRow(
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        items(ev.types) { type ->
-                                            val isSelectedFilter = type.name == selectedEventType
-                                            Card(
-                                                colors = CardDefaults.cardColors(
-                                                    containerColor = if (isSelectedFilter)
-                                                        MaterialTheme.colorScheme.primaryContainer
-                                                    else
-                                                        MaterialTheme.colorScheme.tertiaryContainer
-                                                ),
-                                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-                                            ) {
-                                                Text(
-                                                    text = type.name,
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = if (isSelectedFilter)
-                                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                                    else
-                                                        MaterialTheme.colorScheme.onTertiaryContainer,
-                                                    fontWeight = if (isSelectedFilter)
-                                                        androidx.compose.ui.text.font.FontWeight.Bold
-                                                    else
-                                                        androidx.compose.ui.text.font.FontWeight.Normal,
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    EventCard(event = ev, modifier = Modifier, onClick = { onEventClick(ev.id) })
                 }
             }
         }

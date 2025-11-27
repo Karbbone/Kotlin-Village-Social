@@ -139,17 +139,16 @@ export class EventsService {
 
     if (!meta) throw new NotFoundException('Event not found');
 
-    const now = new Date();
-    const eventDate = new Date(meta.event_date as unknown as string);
-    const creatorId = meta.creator_id;
-    if (eventDate < now && requesterId !== creatorId) {
-      throw new ForbiddenException('Past event: access restricted to creator');
-    }
-
-    // Étape 2: retourner l'événement sans inclure la relation 'creator'
+    // Retourner l'événement avec ses relations (photos et types)
     const ev = await this.eventRepo.findOne({
       where: { id },
-      relations: ['photos', 'types'],
+      relations: ['photos', 'types', 'creator'],
+      select: {
+        creator: {
+          id: true,
+          displayName: true,
+        },
+      },
     });
     if (!ev) throw new NotFoundException('Event not found');
     return ev;
